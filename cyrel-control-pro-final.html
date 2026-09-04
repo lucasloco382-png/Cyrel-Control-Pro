@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#14161A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Cyrel Control Pro — Integral de Empaques</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink-k:#14161A;
+  --ink-k-soft:#1E2126;
+  --paper:#ECEAE3;
+  --paper-dim:#DCD9CF;
+  --cyan:#00AEEF;
+  --magenta:#EC008C;
+  --yellow:#FFC800;
+  --line:#33363D;
+  --line-light:#C9C5B8;
+  --ok:#1FA97C;
+  --radius:3px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--paper);
+  color:var(--ink-k);
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:600;
+  letter-spacing:.2px;
+  margin:0;
+}
+button,input,select,textarea{font-family:inherit;font-size:15px;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--line-light);border-radius:4px;}
+
+/* Status bar */
+#status-bar{
+  position:fixed;top:0;left:0;right:0;height:24px;background:var(--ink-k);color:#fff;
+  font-size:10px;display:flex;align-items:center;justify-content:space-between;padding:2px 8px;z-index:1000;
+}
+#fb-status{display:inline-block;padding:0 4px;}
+#fb-status.connected:after{content:'● Firebase conectado';color:var(--ok);}
+#fb-status.connecting:after{content:'◐ Conectando...';color:var(--yellow);}
+#fb-status.disconnected:after{content:'◯ Sin conexión';color:var(--magenta);}
+
+/* shell */
+#app{display:flex;min-height:100vh;margin-top:24px;}
+#sidebar{
+  width:230px;flex-shrink:0;background:var(--ink-k);color:var(--paper);
+  display:flex;flex-direction:column;position:fixed;top:24px;bottom:0;left:0;
+  transform:translateX(0);transition:transform .25s ease;z-index:40;
+}
+#sidebar .brand{
+  padding:20px 18px 14px;border-bottom:1px solid #2A2D33;
+}
+#sidebar .brand .mark{
+  display:flex;gap:3px;margin-bottom:8px;
+}
+#sidebar .brand .mark span{width:14px;height:14px;border-radius:2px;}
+#sidebar .brand .mark span:nth-child(1){background:var(--cyan);}
+#sidebar .brand .mark span:nth-child(2){background:var(--magenta);}
+#sidebar .brand .mark span:nth-child(3){background:var(--yellow);}
+#sidebar .brand h1{font-size:22px;color:#fff;line-height:1;}
+#sidebar .brand small{color:#8B8D8A;font-size:11px;letter-spacing:.5px;}
+#nav{flex:1;overflow-y:auto;padding:10px 0;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:11px 18px;font-size:14.5px;
+  color:#C9CBCE;cursor:pointer;border-left:3px solid transparent;user-select:none;
+}
+.nav-item:hover{background:#1B1E23;color:#fff;}
+.nav-item.active{background:#1B1E23;color:#fff;border-left-color:var(--cyan);}
+.nav-item .dot{width:6px;height:6px;border-radius:50%;background:#555;flex-shrink:0;}
+#userbox{padding:14px 18px;border-top:1px solid #2A2D33;font-size:13px;color:#9A9C9F;}
+#userbox b{color:#fff;display:block;font-size:14px;}
+#userbox button{margin-top:8px;background:none;border:1px solid #3A3D44;color:#C9CBCE;padding:5px 10px;border-radius:var(--radius);cursor:pointer;font-size:12px;}
+
+#main{flex:1;margin-left:230px;padding:22px 26px 60px;max-width:1200px;}
+#topbar{display:none;align-items:center;gap:12px;margin-bottom:14px;}
+#hamburger{display:none;background:var(--ink-k);color:#fff;border:none;width:38px;height:38px;border-radius:var(--radius);font-size:18px;cursor:pointer;}
+
+.page-title{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+.page-title h2{font-size:28px;}
+.page-title .sub{color:#6B6D66;font-size:13px;}
+.btn{
+  background:var(--ink-k);color:#fff;border:none;padding:9px 16px;border-radius:var(--radius);
+  cursor:pointer;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:6px;
+}
+.btn:hover{background:#2A2D33;}
+.btn.cyan{background:var(--cyan);color:#04222D;}
+.btn.magenta{background:var(--magenta);color:#fff;}
+.btn.ghost{background:transparent;color:var(--ink-k);border:1px solid var(--line-light);}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.btn[disabled]{opacity:.4;cursor:not-allowed;}
+
+/* dashboard cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px;}
+.kpi{background:#fff;border:1px solid var(--line-light);border-radius:var(--radius);padding:14px 16px;border-left:4px solid var(--ink-k);}
+.kpi .n{font-family:'Barlow Condensed';font-size:34px;font-weight:700;line-height:1;}
+.kpi .l{font-size:12px;color:#6B6D66;margin-top:4px;text-transform:uppercase;letter-spacing:.4px;}
+.kpi.c-cyan{border-left-color:var(--cyan);}
+.kpi.c-magenta{border-left-color:var(--magenta);}
+.kpi.c-yellow{border-left-color:var(--yellow);}
+.kpi.c-ok{border-left-color:var(--ok);}
+
+.panel{background:#fff;border:1px solid var(--line-light);border-radius:var(--radius);padding:16px;margin-bottom:20px;}
+.panel h3{font-size:19px;margin-bottom:10px;}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6B6D66;padding:8px 10px;border-bottom:2px solid var(--ink-k);}
+td{padding:9px 10px;border-bottom:1px solid #E5E2D8;vertical-align:middle;}
+tr:hover td{background:#F7F5EE;}
+.tbl-wrap{overflow-x:auto;}
+
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.badge.disponible{background:#DFF6EC;color:#0E7A54;}
+.badge.programado{background:#E3F1FC;color:#0568A0;}
+.badge.aprobacion_pendiente{background:#FFF3CF;color:#8A6A00;}
+.badge.en_impresion{background:#E7E3FF;color:#4B2FBE;}
+.badge.en_modificacion{background:#FFE3F2;color:#A00A63;}
+.badge.en_reposicion{background:#FFE3D8;color:#B24500;}
+.badge.rechazado{background:#FDE0E0;color:#B3261E;}
+.badge.baja{background:#EDEDED;color:#666;}
+
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.filter-row select,.filter-row input{padding:7px 10px;border:1px solid var(--line-light);border-radius:var(--radius);background:#fff;}
+.filter-row input[type=text]{flex:1;min-width:160px;}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(20,22,26,.55);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:30px 14px;overflow-y:auto;margin-top:24px;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;border-radius:6px;width:100%;max-width:560px;padding:22px;margin-top:10px;}
+.modal h3{font-size:21px;margin-bottom:14px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12px;font-weight:600;color:#4A4C46;margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px;}
+.field input,.field select,.field textarea{width:100%;padding:9px 10px;border:1px solid var(--line-light);border-radius:var(--radius);background:#FBFAF6;}
+.field textarea{resize:vertical;min-height:60px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.plancha-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center;}
+.plancha-row input{padding:6px 8px;font-size:12.5px;}
+
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--ink-k);}
+.login-box{background:#fff;padding:34px;border-radius:6px;width:100%;max-width:360px;}
+.login-box .mark{display:flex;gap:3px;margin-bottom:14px;}
+.login-box .mark span{width:16px;height:16px;border-radius:2px;}
+.login-box .mark span:nth-child(1){background:var(--cyan);}
+.login-box .mark span:nth-child(2){background:var(--magenta);}
+.login-box .mark span:nth-child(3){background:var(--yellow);}
+.login-box h1{font-size:26px;margin-bottom:2px;}
+.login-box p{color:#6B6D66;font-size:13px;margin:0 0 18px;}
+.login-status{font-size:12px;padding:8px;border-radius:var(--radius);margin-bottom:12px;}
+.login-status.loading{background:#E3F1FC;color:#0568A0;}
+.login-status.error{background:#FDE0E0;color:#B3261E;}
+
+.hist-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #EDEAE0;}
+.hist-item .dot{width:9px;height:9px;border-radius:50%;background:var(--cyan);margin-top:5px;flex-shrink:0;}
+.hist-item .t{font-size:11px;color:#8A8C86;}
+.hist-item .d{font-size:13.5px;}
+
+.empty{padding:40px 10px;text-align:center;color:#8A8C86;}
+.empty b{display:block;color:var(--ink-k);font-size:15px;margin-bottom:4px;}
+
+.qr-box{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px;}
+.life-bar{height:8px;background:#E5E2D8;border-radius:4px;overflow:hidden;width:100%;}
+.life-bar > div{height:100%;background:var(--ok);}
+.life-bar.warn > div{background:var(--yellow);}
+.life-bar.danger > div{background:var(--magenta);}
+
+@media(max-width:880px){
+  #sidebar{transform:translateX(-100%);}
+  #sidebar.open{transform:translateX(0);}
+  #main{margin-left:0;padding:16px;}
+  #topbar{display:flex;}
+  #hamburger{display:block;}
+  .two-col{grid-template-columns:1fr;}
+  .plancha-row{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= STATUS BAR ================= -->
+<div id="status-bar">
+  <span id="fb-status" class="connecting"></span>
+  <span id="status-msg">Iniciando...</span>
+</div>
+
+<!-- ================= LOGIN ================= -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="mark"><span></span><span></span><span></span></div>
+    <h1>Cyrel Control Pro</h1>
+    <p>Centro de control de cyreles — Integral de Empaques</p>
+    <div id="login-status-msg"></div>
+    <div class="field">
+      <label>Usuario</label>
+      <select id="login-user" disabled></select>
+    </div>
+    <div class="field">
+      <label>PIN</label>
+      <input type="password" id="login-pin" maxlength="6" placeholder="••••" disabled>
+    </div>
+    <button class="btn cyan" style="width:100%;justify-content:center" id="login-btn" onclick="doLogin()" disabled>Conectando...</button>
+    <p style="font-size:11px;color:#B0AD9F;margin-top:16px;" id="login-hint">Cargando usuarios desde Firebase...</p>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" style="display:none;">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="mark"><span></span><span></span><span></span></div>
+      <h1>Cyrel Control Pro</h1>
+      <small>INTEGRAL DE EMPAQUES</small>
+    </div>
+    <nav id="nav"></nav>
+    <div id="userbox">
+      <b id="userbox-name"></b>
+      <span id="userbox-role"></span>
+      <button onclick="doLogout()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div id="topbar">
+      <button id="hamburger" onclick="toggleSidebar()">☰</button>
+      <strong id="topbar-title"></strong>
+    </div>
+    <div id="page"></div>
+  </main>
+</div>
+
+<div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
+
+<script>
+/* ============================================================
+   CYREL CONTROL PRO v1.0 — INSTALAR FIREBASE
+   
+   1. Copia el firebaseConfig de tu proyecto Firebase
+   2. Reemplaza TODO el bloque abajo
+   3. Guarda este archivo
+   
+   Más info: 00-SETUP-FIREBASE-PASO-A-PASO.md
+   ============================================================ */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAuXEDMDkhrxwNhcxlg4SAJ53kAPMQKw5Q",
+  authDomain: "cyrel-control-pro.firebaseapp.com",
+  projectId: "cyrel-control-pro",
+  storageBucket: "cyrel-control-pro.firebasestorage.app",
+  messagingSenderId: "7188504637",
+  appId: "1:7188504637:web:d8991c8d6ca827377bca54",
+  measurementId: "G-9PV8Y5GTLX"
+};
+
+// Verificar si la config es la de ejemplo
+const isExampleConfig = firebaseConfig.apiKey === "TU_API_KEY_AQUI";
+
+/* ============================================================
+   ESTADO GLOBAL
+   ============================================================ */
+let currentUser = null;
+let currentPage = 'tablero';
+let fbReady = false;
+let CACHE = { clientes:[], referencias:[], cyreles:[], usuarios:[], planeacion:[], calidad:[], impresion:[], modificacion:[], reposicion:[], configuracion:null };
+let unsubscribers = [];
+
+const ESTADOS = ['disponible','programado','aprobacion_pendiente','en_impresion','en_modificacion','en_reposicion','rechazado','baja'];
+const ESTADO_LABEL = {
+  disponible:'Disponible', programado:'Programado', aprobacion_pendiente:'Aprob. pendiente',
+  en_impresion:'En impresión', en_modificacion:'En modificación', en_reposicion:'En reposición',
+  rechazado:'Rechazado', baja:'Dado de baja'
+};
+const MAQUINAS_DEFAULT = ['Botheven','M01','M02','M03','M04','M05','M06','M07','M08','M09','M10'];
+
+const NAV = [
+  {id:'tablero', label:'Tablero'},
+  {id:'inventario', label:'Inventario'},
+  {id:'clientes', label:'Clientes'},
+  {id:'planeacion', label:'Planeación'},
+  {id:'calidad', label:'Calidad'},
+  {id:'impresion', label:'Impresión'},
+  {id:'modificacion', label:'Modificación'},
+  {id:'reposicion', label:'Reposición'},
+  {id:'trazabilidad', label:'Trazabilidad'},
+  {id:'reportes', label:'Reportes'},
+  {id:'configuracion', label:'Configuración'},
+  {id:'usuarios', label:'Usuarios'},
+];
+
+/* ============================================================
+   INICIALIZACIÓN FIREBASE
+   ============================================================ */
+function initFirebase(){
+  if(isExampleConfig){
+    updateStatusBar('disconnected', 'Config de Firebase no instalada');
+    showLoginError('⚠️ <b>Configura Firebase primero</b><br>Abre el archivo HTML con un editor, busca <code>firebaseConfig</code> y reemplaza con tus datos reales de Firebase Console.', 'error');
+    document.getElementById('login-hint').textContent = 'Ver: 01-SETUP-FIREBASE-PASO-A-PASO.md';
+    return false;
+  }
+  try{
+    firebase.initializeApp(firebaseConfig);
+    window.db = firebase.firestore();
+    window.storage = firebase.storage();
+    window.FieldValue = firebase.firestore.FieldValue;
+    window.Timestamp = firebase.firestore.Timestamp;
+    updateStatusBar('connecting', 'Conectando a Firebase...');
+    checkFirebaseConnection();
+    return true;
+  }catch(e){
+    console.error('Firebase init error:', e);
+    updateStatusBar('disconnected', 'Error de inicialización');
+    showLoginError('Error al conectar con Firebase: ' + e.message, 'error');
+    return false;
+  }
+}
+
+function checkFirebaseConnection(){
+  db.collection('configuracion').doc('general').get().then(()=>{
+    fbReady = true;
+    updateStatusBar('connected', 'Conectado');
+    loadLoginUsers();
+  }).catch(e=>{
+    console.error('Connection check failed:', e);
+    updateStatusBar('disconnected', 'Sin conexión a Firebase');
+    showLoginError('No se puede conectar a Firebase. Verifica tu conexión de internet y la config.', 'error');
+    setTimeout(checkFirebaseConnection, 5000);
+  });
+}
+
+function updateStatusBar(status, msg){
+  const el = document.getElementById('fb-status');
+  el.className = status;
+  if(msg) document.getElementById('status-msg').textContent = msg;
+}
+
+function showLoginError(msg, type){
+  const el = document.getElementById('login-status-msg');
+  el.className = 'login-status ' + (type||'');
+  el.innerHTML = msg;
+  el.style.display = 'block';
+}
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+async function loadLoginUsers(){
+  const sel = document.getElementById('login-user');
+  sel.disabled = false;
+  sel.innerHTML = '<option value="">Cargando usuarios...</option>';
+  try{
+    const snap = await db.collection('usuarios').where('activo','==',true).orderBy('nombre').get();
+    if(snap.empty){
+      sel.innerHTML = '<option value="">⚠️ Sin usuarios - crea uno en Firestore</option>';
+      document.getElementById('login-hint').textContent = '❌ Crea tu primer usuario admin en Firestore (colección "usuarios")';
+      document.getElementById('login-btn').disabled = true;
+      return;
+    }
+    sel.innerHTML = snap.docs.map(d=>{
+      const u = d.data();
+      return `<option value="${d.id}">${u.nombre} (${u.rol})</option>`;
+    }).join('');
+    document.getElementById('login-pin').disabled = false;
+    document.getElementById('login-btn').disabled = false;
+    document.getElementById('login-hint').textContent = 'Ingresa tu PIN de acceso';
+  }catch(e){
+    sel.innerHTML = '<option value="">❌ Error cargando usuarios</option>';
+    console.error('Load users error:', e);
+  }
+}
+
+async function doLogin(){
+  const uid = document.getElementById('login-user').value;
+  const pin = document.getElementById('login-pin').value.trim();
+  if(!uid || !pin){ showLoginError('Selecciona usuario e ingresa PIN', 'error'); return; }
+  
+  document.getElementById('login-btn').disabled = true;
+  document.getElementById('login-btn').textContent = 'Verificando...';
+  
+  try{
+    const doc = await db.collection('usuarios').doc(uid).get();
+    if(!doc.exists || doc.data().pin !== pin){
+      showLoginError('❌ PIN incorrecto', 'error');
+      document.getElementById('login-btn').disabled = false;
+      document.getElementById('login-btn').textContent = 'Ingresar';
+      return;
+    }
+    
+    currentUser = {id:doc.id, ...doc.data()};
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('userbox-name').textContent = currentUser.nombre;
+    document.getElementById('userbox-role').textContent = currentUser.rol;
+    buildNav();
+    startRealtimeListeners();
+    goTo('tablero');
+  }catch(e){
+    showLoginError('Error al verificar: ' + e.message, 'error');
+    console.error('Login error:', e);
+    document.getElementById('login-btn').disabled = false;
+    document.getElementById('login-btn').textContent = 'Ingresar';
+  }
+}
+
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
+
+function doLogout(){
+  if(!confirm('¿Seguro que quieres cerrar sesión?')) return;
+  unsubscribers.forEach(u=>u());
+  unsubscribers=[];
+  currentUser=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-pin').value='';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-status-msg').style.display='none';
+  loadLoginUsers();
+}
+
+/* ============================================================
+   NAV
+   ============================================================ */
+function buildNav(){
+  const nav = document.getElementById('nav');
+  nav.innerHTML = NAV.map(n=>`<div class="nav-item" data-id="${n.id}" onclick="goTo('${n.id}')"><span class="dot"></span>${n.label}</div>`).join('');
+}
+
+function goTo(id){
+  currentPage = id;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active', el.dataset.id===id));
+  document.getElementById('sidebar').classList.remove('open');
+  const titleMap = Object.fromEntries(NAV.map(n=>[n.id,n.label]));
+  document.getElementById('topbar-title').textContent = titleMap[id] || '';
+  if(RENDER[id]) RENDER[id]();
+  else renderEmptyPage(id);
+}
+
+/* ============================================================
+   REALTIME LISTENERS
+   ============================================================ */
+function startRealtimeListeners(){
+  const bind = (col, key, order) => {
+    let ref = db.collection(col);
+    if(order) ref = ref.orderBy(order,'desc');
+    unsubscribers.push(ref.onSnapshot(snap=>{
+      CACHE[key] = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      if(currentPage===key || (key==='cyreles'&&currentPage==='inventario') || currentPage==='tablero') {
+        if(RENDER[currentPage]) RENDER[currentPage]();
+      }
+    }, err=>{
+      console.error('Listener error for', col, err);
+      updateStatusBar('disconnected', 'Error de sincronización');
+    }));
+  };
+  bind('clientes','clientes');
+  bind('referencias','referencias');
+  bind('cyreles','cyreles');
+  bind('usuarios','usuarios');
+  bind('planeacion','planeacion','fechaImportacion');
+  bind('calidad','calidad','fecha');
+  bind('impresion','impresion','fechaEntrega');
+  bind('modificacion','modificacion','fechaSolicitud');
+  bind('reposicion','reposicion','fechaSolicitud');
+  db.collection('configuracion').doc('general').onSnapshot(d=>{
+    CACHE.configuracion = d.exists ? d.data() : {umbralAlertaVidaUtil:20, maquinas:MAQUINAS_DEFAULT, bodegas:['Bodega principal']};
+    if((currentPage==='configuracion'||currentPage==='tablero') && RENDER[currentPage]) RENDER[currentPage]();
+  }, err=>console.error('Config listener error:', err));
+  updateStatusBar('connected', 'Sincronizando...');
+}
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function fmtDate(ts){
+  if(!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+}
+function clienteNombre(id){ return CACHE.clientes.find(c=>c.id===id)?.nombre || '—'; }
+function referenciaNombre(id){ return CACHE.referencias.find(r=>r.id===id)?.nombreReferencia || '—'; }
+function usuarioNombre(id){ return CACHE.usuarios.find(u=>u.id===id)?.nombre || '—'; }
+function cyrelById(id){ return CACHE.cyreles.find(c=>c.id===id); }
+function badge(estado){ return `<span class="badge ${estado}">${ESTADO_LABEL[estado]||estado}</span>`; }
+function openModal(html){ document.getElementById('modal').innerHTML = html; document.getElementById('modal-bg').classList.add('show'); }
+function closeModal(){ document.getElementById('modal-bg').classList.remove('show'); }
+async function addHistorial(cyrelId, tipoEvento, estadoAnterior, estadoNuevo, detalles={}, docRel=null){
+  try{
+    await db.collection('cyreles').doc(cyrelId).collection('historial').add({
+      fecha: FieldValue.serverTimestamp(), tipoEvento, estadoAnterior, estadoNuevo,
+      usuarioId: currentUser.id, detalles, documentoRelacionadoId: docRel
+    });
+    await db.collection('movimientos').add({
+      cyrelId, tipo:tipoEvento, estadoAnterior, estadoNuevo, fecha: FieldValue.serverTimestamp(), usuarioId: currentUser.id
+    });
+  }catch(e){ console.error('Historial error:', e); }
+}
+async function setEstado(cyrelId, nuevo){
+  try{
+    const c = cyrelById(cyrelId);
+    await db.collection('cyreles').doc(cyrelId).update({estado:nuevo});
+    return c ? c.estado : null;
+  }catch(e){ console.error('setEstado error:', e); }
+}
+function vidaUtilPct(c){
+  const vu = c.vidaUtil || {};
+  if(!vu.impresionesMaximas) return 100;
+  const restante = Math.max(0, vu.impresionesMaximas - (vu.impresionesAcumuladas||0));
+  return Math.round((restante/vu.impresionesMaximas)*100);
+}
+
+/* ============================================================
+   TABLERO
+   ============================================================ */
+function renderTablero(){
+  const counts = Object.fromEntries(ESTADOS.map(e=>[e,0]));
+  CACHE.cyreles.forEach(c=>{ if(counts[c.estado]!==undefined) counts[c.estado]++; });
+  const total = CACHE.cyreles.length;
+  const umbral = CACHE.configuracion?.umbralAlertaVidaUtil ?? 20;
+  const alertas = CACHE.cyreles.filter(c=>c.activo!==false && vidaUtilPct(c) <= umbral);
+  const recientes = [...CACHE.impresion].slice(0,6);
+
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Tablero</h2><span class="sub">Estado en tiempo real de todos los cyreles</span></div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="n">${total}</div><div class="l">Total cyreles</div></div>
+      <div class="kpi c-ok"><div class="n">${counts.disponible}</div><div class="l">Disponibles</div></div>
+      <div class="kpi c-cyan"><div class="n">${counts.programado}</div><div class="l">Programados</div></div>
+      <div class="kpi"><div class="n">${counts.en_impresion}</div><div class="l">En impresión</div></div>
+      <div class="kpi"><div class="n">${counts.en_modificacion}</div><div class="l">En modificación</div></div>
+      <div class="kpi"><div class="n">${counts.en_reposicion}</div><div class="l">En reposición</div></div>
+      <div class="kpi c-yellow"><div class="n">${counts.aprobacion_pendiente}</div><div class="l">Aprob. pendientes</div></div>
+      <div class="kpi c-magenta"><div class="n">${alertas.length}</div><div class="l">Alertas vida útil</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>Alertas de vida útil (≤ ${umbral}%)</h3>
+      ${alertas.length ? `<div class="tbl-wrap"><table><thead><tr><th>Código</th><th>Cliente</th><th>Vida útil</th><th>Estado</th></tr></thead><tbody>
+        ${alertas.map(c=>`<tr><td><b>${c.codigo}</b></td><td>${clienteNombre(c.clienteId)}</td><td>${vidaUtilPct(c)}%</td><td>${badge(c.estado)}</td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="empty">Ningún cyrel en alerta por ahora.</div>`}
+    </div>
+
+    <div class="panel">
+      <h3>Movimientos recientes de impresión</h3>
+      ${recientes.length ? `<div class="tbl-wrap"><table><thead><tr><th>Cyrel</th><th>Máquina</th><th>Entrega</th><th>Estado</th></tr></thead><tbody>
+      ${recientes.map(m=>`<tr><td>${cyrelById(m.cyrelId)?.codigo||m.cyrelId}</td><td>${m.maquina||'—'}</td><td>${fmtDate(m.fechaEntrega)}</td><td>${m.estado}</td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="empty"><b>Sin movimientos aún</b></div>`}
+    </div>
+  `;
+}
+
+/* ============================================================
+   INVENTARIO (CYRELES)
+   ============================================================ */
+function renderInventario(){
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Inventario de Cyreles</h2>
+      <div style="display:flex;gap:8px;">
+        <button class="btn ghost sm" onclick="exportCyrelesExcel()">Exportar Excel</button>
+        <button class="btn cyan" onclick="openCyrelForm()">+ Nuevo cyrel</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <input type="text" id="inv-search" placeholder="Buscar por código, cliente o referencia..." oninput="renderInventarioTabla()">
+      <select id="inv-estado" onchange="renderInventarioTabla()"><option value="">Todos los estados</option>${ESTADOS.map(e=>`<option value="${e}">${ESTADO_LABEL[e]}</option>`).join('')}</select>
+    </div>
+    <div class="panel"><div class="tbl-wrap" id="inv-tabla"></div></div>
+  `;
+  renderInventarioTabla();
+}
+function renderInventarioTabla(){
+  const q = (document.getElementById('inv-search')?.value||'').toLowerCase();
+  const estF = document.getElementById('inv-estado')?.value || '';
+  let rows = CACHE.cyreles.filter(c=>c.activo!==false);
+  if(estF) rows = rows.filter(c=>c.estado===estF);
+  if(q) rows = rows.filter(c=> (c.codigo||'').toLowerCase().includes(q) || clienteNombre(c.clienteId).toLowerCase().includes(q) || referenciaNombre(c.referenciaId).toLowerCase().includes(q));
+  const el = document.getElementById('inv-tabla');
+  if(!rows.length){ el.innerHTML = `<div class="empty"><b>No hay cyreles que coincidan</b>Ajusta el filtro o crea un nuevo cyrel.</div>`; return; }
+  el.innerHTML = `<table><thead><tr><th>Código</th><th>Cliente</th><th>Referencia</th><th>Vida útil</th><th>Ubicación</th><th>Estado</th><th></th></tr></thead><tbody>
+    ${rows.map(c=>{
+      const pct = vidaUtilPct(c);
+      const barCls = pct<=20?'danger':(pct<=40?'warn':'');
+      return `<tr>
+        <td><b>${c.codigo}</b></td>
+        <td>${clienteNombre(c.clienteId)}</td>
+        <td>${referenciaNombre(c.referenciaId)}</td>
+        <td style="min-width:110px;"><div class="life-bar ${barCls}"><div style="width:${pct}%"></div></div><small>${pct}%</small></td>
+        <td>${c.ubicacion?.bodega||'—'} ${c.ubicacion?.estante?('· '+c.ubicacion.estante):''}</td>
+        <td>${badge(c.estado)}</td>
+        <td><button class="btn ghost sm" onclick="openCyrelDetalle('${c.id}')">Ver</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+function openCyrelForm(existing){
+  const c = existing || {codigo:'',clienteId:'',referenciaId:'',ubicacion:{bodega:'',estante:''},vidaUtil:{impresionesMaximas:100000,impresionesAcumuladas:0},planchas:[]};
+  const clientesOpts = CACHE.clientes.map(cl=>`<option value="${cl.id}" ${c.clienteId===cl.id?'selected':''}>${cl.nombre}</option>`).join('');
+  openModal(`
+    <h3>${existing?'Editar':'Nuevo'} cyrel</h3>
+    <div class="two-col">
+      <div class="field"><label>Código</label><input id="f-codigo" value="${c.codigo}" placeholder="CYR-0001"></div>
+      <div class="field"><label>Cliente</label><select id="f-cliente" onchange="fillReferenciasSelect()"><option value="">Selecciona...</option>${clientesOpts}</select></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Referencia</label><select id="f-referencia"><option value="">Selecciona cliente primero</option></select></div>
+      <div class="field"><label>Bodega / Ubicación</label><input id="f-bodega" value="${c.ubicacion?.bodega||''}" placeholder="Bodega principal"></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Vida útil máxima (impresiones)</label><input type="number" id="f-vumax" value="${c.vidaUtil?.impresionesMaximas||100000}"></div>
+      <div class="field"><label>Arte (PDF o imagen)</label><input type="file" id="f-arte" accept=".pdf,image/*"></div>
+    </div>
+    <div class="field">
+      <label>Planchas</label>
+      <div id="planchas-list"></div>
+      <button class="btn ghost sm" onclick="addPlanchaRow()">+ Agregar plancha</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn cyan" onclick="saveCyrel('${existing?existing.id:''}')">Guardar</button>
+    </div>
+  `);
+  window._planchasTmp = (c.planchas && c.planchas.length) ? [...c.planchas] : [{numero:1,color:'',ancho:'',alto:'',espesor:''}];
+  renderPlanchasRows();
+  if(c.clienteId) fillReferenciasSelect(c.referenciaId);
+}
+function renderPlanchasRows(){
+  document.getElementById('planchas-list').innerHTML = window._planchasTmp.map((p,i)=>`
+    <div class="plancha-row">
+      <input placeholder="N°" value="${p.numero||''}" onchange="window._planchasTmp[${i}].numero=this.value">
+      <input placeholder="Color" value="${p.color||''}" onchange="window._planchasTmp[${i}].color=this.value">
+      <input placeholder="Ancho" value="${p.ancho||''}" onchange="window._planchasTmp[${i}].ancho=this.value">
+      <input placeholder="Alto" value="${p.alto||''}" onchange="window._planchasTmp[${i}].alto=this.value">
+      <input placeholder="Espesor" value="${p.espesor||''}" onchange="window._planchasTmp[${i}].espesor=this.value">
+      <button class="btn ghost sm" onclick="removePlanchaRow(${i})">✕</button>
+    </div>`).join('');
+}
+function addPlanchaRow(){ window._planchasTmp.push({numero:window._planchasTmp.length+1,color:'',ancho:'',alto:'',espesor:''}); renderPlanchasRows(); }
+function removePlanchaRow(i){ window._planchasTmp.splice(i,1); renderPlanchasRows(); }
+function fillReferenciasSelect(selected){
+  const clienteId = document.getElementById('f-cliente').value;
+  const refs = CACHE.referencias.filter(r=>r.clienteId===clienteId);
+  document.getElementById('f-referencia').innerHTML = refs.length
+    ? refs.map(r=>`<option value="${r.id}" ${r.id===selected?'selected':''}>${r.nombreReferencia}</option>`).join('')
+    : `<option value="">Este cliente no tiene referencias</option>`;
+}
+async function saveCyrel(existingId){
+  const codigo = document.getElementById('f-codigo').value.trim();
+  if(!codigo){ alert('El código es obligatorio.'); return; }
+  const data = {
+    codigo,
+    clienteId: document.getElementById('f-cliente').value,
+    referenciaId: document.getElementById('f-referencia').value,
+    ubicacion: { bodega: document.getElementById('f-bodega').value },
+    vidaUtil: {
+      impresionesMaximas: Number(document.getElementById('f-vumax').value)||0,
+      impresionesAcumuladas: 0
+    },
+    planchas: window._planchasTmp,
+    activo: true
+  };
+  let cyrelId = existingId;
+  if(existingId){
+    await db.collection('cyreles').doc(existingId).update(data);
+  } else {
+    data.estado = 'disponible';
+    data.fechaCreacion = FieldValue.serverTimestamp();
+    data.qrCode = codigo;
+    const fileInput = document.getElementById('f-arte');
+    const ref = await db.collection('cyreles').add(data);
+    cyrelId = ref.id;
+    if(fileInput.files[0]){
+      const path = `cyreles/${cyrelId}/${fileInput.files[0].name}`;
+      const task = await storage.ref(path).put(fileInput.files[0]);
+      const url = await task.ref.getDownloadURL();
+      await db.collection('cyreles').doc(cyrelId).update({arte:{url, tipo: fileInput.files[0].type.includes('pdf')?'pdf':'imagen', fechaCarga: FieldValue.serverTimestamp()}});
+    }
+    await addHistorial(cyrelId,'creacion',null,'disponible');
+  }
+  closeModal();
+}
+function openCyrelDetalle(id){
+  const c = cyrelById(id);
+  if(!c) return;
+  const pct = vidaUtilPct(c);
+  openModal(`
+    <h3>${c.codigo}</h3>
+    <p style="color:#6B6D66;font-size:13.5px;margin-top:-8px;">${clienteNombre(c.clienteId)} · ${referenciaNombre(c.referenciaId)} · ${badge(c.estado)}</p>
+    <div class="qr-box" id="qr-target"></div>
+    <div class="two-col">
+      <div><b>Vida útil</b><div class="life-bar ${pct<=20?'danger':(pct<=40?'warn':'')}" style="margin-top:6px;"><div style="width:${pct}%"></div></div><small>${pct}% restante</small></div>
+      <div><b>Ubicación</b><div>${c.ubicacion?.bodega||'—'}</div></div>
+    </div>
+    <h3 style="margin-top:16px;">Planchas</h3>
+    <div class="tbl-wrap"><table><thead><tr><th>N°</th><th>Color</th><th>Ancho</th><th>Alto</th><th>Espesor</th></tr></thead><tbody>
+      ${(c.planchas||[]).map(p=>`<tr><td>${p.numero||''}</td><td>${p.color||''}</td><td>${p.ancho||''}</td><td>${p.alto||''}</td><td>${p.espesor||''}</td></tr>`).join('') || '<tr><td colspan="5">Sin planchas registradas</td></tr>'}
+    </tbody></table></div>
+    <h3 style="margin-top:16px;">Hoja de vida</h3>
+    <div id="hist-target"><div class="empty">Cargando historial...</div></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">Cerrar</button>
+      <button class="btn" onclick='openCyrelForm(${JSON.stringify(c).replace(/'/g,"&apos;")})'>Editar</button>
+    </div>
+  `);
+  new QRCode(document.getElementById('qr-target'), {text:c.codigo, width:110, height:110});
+  db.collection('cyreles').doc(id).collection('historial').orderBy('fecha','desc').limit(30).get().then(snap=>{
+    const el = document.getElementById('hist-target');
+    if(snap.empty){ el.innerHTML = '<div class="empty">Sin eventos registrados aún.</div>'; return; }
+    el.innerHTML = snap.docs.map(d=>{
+      const h = d.data();
+      return `<div class="hist-item"><div class="dot"></div><div><div class="d"><b>${h.tipoEvento}</b> — ${usuarioNombre(h.usuarioId)}</div><div class="t">${fmtDate(h.fecha)} ${h.estadoAnterior?('· '+ESTADO_LABEL[h.estadoAnterior]+' → '+ESTADO_LABEL[h.estadoNuevo]):''}</div></div></div>`;
+    }).join('');
+  }).catch(e=>console.error('Historial fetch error:', e));
+}
+function exportCyrelesExcel(){
+  const rows = CACHE.cyreles.map(c=>({
+    Codigo:c.codigo, Cliente:clienteNombre(c.clienteId), Referencia:referenciaNombre(c.referenciaId),
+    Estado:ESTADO_LABEL[c.estado]||c.estado, VidaUtilPct:vidaUtilPct(c), Bodega:c.ubicacion?.bodega||''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cyreles');
+  XLSX.writeFile(wb, `cyreles_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+/* ============================================================
+   CLIENTES / REFERENCIAS
+   ============================================================ */
+function renderClientes(){
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Clientes y referencias</h2><button class="btn cyan" onclick="openClienteForm()">+ Nuevo cliente</button></div>
+    <div class="panel"><div class="tbl-wrap" id="cli-tabla"></div></div>
+  `;
+  const el = document.getElementById('cli-tabla');
+  if(!CACHE.clientes.length){ el.innerHTML = `<div class="empty"><b>Sin clientes aún</b>Crea el primero para empezar a registrar cyreles.</div>`; return; }
+  el.innerHTML = `<table><thead><tr><th>Cliente</th><th>NIT</th><th>Contacto</th><th>Referencias</th><th></th></tr></thead><tbody>
+    ${CACHE.clientes.map(c=>{
+      const refs = CACHE.referencias.filter(r=>r.clienteId===c.id);
+      return `<tr><td><b>${c.nombre}</b></td><td>${c.nit||'—'}</td><td>${c.contacto||'—'}</td>
+        <td>${refs.map(r=>r.nombreReferencia).join(', ')||'—'} <button class="btn ghost sm" onclick="openReferenciaForm('${c.id}')">+ ref.</button></td>
+        <td><button class="btn ghost sm" onclick='openClienteForm(${JSON.stringify(c).replace(/'/g,"&apos;")})'>Editar</button></td></tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+function openClienteForm(existing){
+  const c = existing||{nombre:'',nit:'',contacto:'',telefono:'',email:''};
+  openModal(`
+    <h3>${existing?'Editar':'Nuevo'} cliente</h3>
+    <div class="field"><label>Nombre</label><input id="f-nombre" value="${c.nombre}"></div>
+    <div class="two-col">
+      <div class="field"><label>NIT</label><input id="f-nit" value="${c.nit||''}"></div>
+      <div class="field"><label>Contacto</label><input id="f-contacto" value="${c.contacto||''}"></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Teléfono</label><input id="f-telefono" value="${c.telefono||''}"></div>
+      <div class="field"><label>Email</label><input id="f-email" value="${c.email||''}"></div>
+    </div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn cyan" onclick="saveCliente('${existing?existing.id:''}')">Guardar</button></div>
+  `);
+}
+async function saveCliente(id){
+  const data = {
+    nombre: document.getElementById('f-nombre').value.trim(),
+    nit: document.getElementById('f-nit').value.trim(),
+    contacto: document.getElementById('f-contacto').value.trim(),
+    telefono: document.getElementById('f-telefono').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    activo:true
+  };
+  if(!data.nombre){ alert('El nombre es obligatorio.'); return; }
+  if(id) await db.collection('clientes').doc(id).update(data);
+  else { data.fechaCreacion = FieldValue.serverTimestamp(); await db.collection('clientes').add(data); }
+  closeModal();
+}
+function openReferenciaForm(clienteId){
+  openModal(`
+    <h3>Nueva referencia — ${clienteNombre(clienteId)}</h3>
+    <div class="field"><label>Código de referencia</label><input id="f-refcod"></div>
+    <div class="field"><label>Nombre de referencia</label><input id="f-refnom"></div>
+    <div class="field"><label>Descripción</label><textarea id="f-refdesc"></textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn cyan" onclick="saveReferencia('${clienteId}')">Guardar</button></div>
+  `);
+}
+async function saveReferencia(clienteId){
+  const nombreReferencia = document.getElementById('f-refnom').value.trim();
+  if(!nombreReferencia){ alert('El nombre es obligatorio.'); return; }
+  await db.collection('referencias').add({
+    clienteId, codigoReferencia: document.getElementById('f-refcod').value.trim(),
+    nombreReferencia, descripcion: document.getElementById('f-refdesc').value.trim(), activo:true
+  });
+  closeModal();
+}
+
+/* ============================================================
+   PLANEACIÓN (importar Excel)
+   ============================================================ */
+function renderPlaneacion(){
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Planeación</h2>
+      <div>
+        <input type="file" id="plan-file" accept=".xlsx,.xls" style="display:none" onchange="importarPlaneacion(this.files[0])">
+        <button class="btn cyan" onclick="document.getElementById('plan-file').click()">Importar Excel</button>
+      </div>
+    </div>
+    <p class="sub" style="margin-bottom:14px;">El Excel debe tener columnas: <b>Maquina, Cliente, Referencia, Fecha, Turno</b></p>
+    <div class="panel"><div id="plan-list"></div></div>
+  `;
+  const el = document.getElementById('plan-list');
+  if(!CACHE.planeacion.length){ el.innerHTML = `<div class="empty"><b>Sin programaciones importadas</b>Importa un Excel para empezar.</div>`; return; }
+  el.innerHTML = CACHE.planeacion.map(p=>`
+    <div class="panel" style="background:#FBFAF6;">
+      <h3 style="font-size:16px;">${p.archivoOrigen||'Programación'} <small style="font-weight:400;color:#8A8C86;">${fmtDate(p.fechaImportacion)}</small></h3>
+      <div class="tbl-wrap" id="plan-items-${p.id}"><div class="empty">Cargando ítems...</div></div>
+    </div>`).join('');
+  CACHE.planeacion.forEach(p=>loadPlaneacionItems(p.id));
+}
+async function loadPlaneacionItems(planId){
+  try{
+    const snap = await db.collection('planeacion').doc(planId).collection('items').get();
+    const el = document.getElementById(`plan-items-${planId}`);
+    if(!el) return;
+    if(snap.empty){ el.innerHTML='<div class="empty">Sin ítems.</div>'; return; }
+    el.innerHTML = `<table><thead><tr><th>Máquina</th><th>Cliente</th><th>Referencia</th><th>Fecha prog.</th><th>Cyreles resueltos</th><th>Estado</th></tr></thead><tbody>
+      ${snap.docs.map(d=>{
+        const it = d.data();
+        const nombres = (it.cyrelesResueltos||[]).map(cid=>cyrelById(cid)?.codigo).filter(Boolean).join(', ') || '—';
+        return `<tr><td>${it.maquina}</td><td>${it.clienteNombre}</td><td>${it.referenciaNombre}</td><td>${it.fechaProgramada}</td><td>${nombres}</td>
+          <td>${it.estado==='resuelto'?badge('disponible'):`<span class="badge rechazado">Sin cyrel</span>`}</td></tr>`;
+      }).join('')}
+    </tbody></table>`;
+  }catch(e){ console.error('Load planeacion items error:', e); }
+}
+async function importarPlaneacion(file){
+  if(!file) return;
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+    if(!rows.length){ alert('El Excel está vacío.'); return; }
+    const planRef = await db.collection('planeacion').add({
+      fechaImportacion: FieldValue.serverTimestamp(), archivoOrigen: file.name, usuarioId: currentUser.id
+    });
+    for(const r of rows){
+      const clienteNom = String(r.Cliente||'').trim();
+      const refNom = String(r.Referencia||'').trim();
+      const cliente = CACHE.clientes.find(c=>c.nombre.toLowerCase()===clienteNom.toLowerCase());
+      const referencia = CACHE.referencias.find(ref=>ref.nombreReferencia.toLowerCase()===refNom.toLowerCase() && (!cliente||ref.clienteId===cliente.id));
+      const cyrelesResueltos = CACHE.cyreles.filter(c=>cliente && referencia && c.clienteId===cliente.id && c.referenciaId===referencia.id && c.activo!==false).map(c=>c.id);
+      await planRef.collection('items').add({
+        maquina: String(r.Maquina||''), clienteId: cliente?.id||null, clienteNombre: clienteNom,
+        referenciaId: referencia?.id||null, referenciaNombre: refNom,
+        fechaProgramada: String(r.Fecha||''), turno: String(r.Turno||''),
+        cyrelesResueltos, estado: cyrelesResueltos.length ? 'resuelto' : 'con_alertas'
+      });
+      for(const cid of cyrelesResueltos){
+        const c = cyrelById(cid);
+        const anterior = c?.estado || 'disponible';
+        await setEstado(cid, 'aprobacion_pendiente');
+        await addHistorial(cid, 'planeado', anterior, 'aprobacion_pendiente', {planeacionId: planRef.id});
+        await db.collection('calidad').add({ cyrelId:cid, planeacionItemId:null, fecha: FieldValue.serverTimestamp(), inspectorId:null, resultado:'pendiente' });
+      }
+    }
+    document.getElementById('plan-file').value = '';
+    alert('Programación importada. Los cyreles identificados quedaron en "Aprobación pendiente".');
+  }catch(e){ console.error('Import planeacion error:', e); alert('Error importando: ' + e.message); }
+}
+
+/* ============================================================
+   CALIDAD
+   ============================================================ */
+function renderCalidad(){
+  const pendientes = CACHE.calidad.filter(q=>q.resultado==='pendiente');
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Calidad</h2><span class="sub">${pendientes.length} aprobación(es) pendiente(s)</span></div>
+    <div class="panel"><div class="tbl-wrap" id="cal-tabla"></div></div>
+  `;
+  const el = document.getElementById('cal-tabla');
+  if(!pendientes.length){ el.innerHTML = `<div class="empty"><b>Sin pendientes</b>Todo al día por ahora.</div>`; return; }
+  el.innerHTML = `<table><thead><tr><th>Cyrel</th><th>Cliente</th><th>Fecha</th><th></th></tr></thead><tbody>
+    ${pendientes.map(q=>{
+      const c = cyrelById(q.cyrelId);
+      return `<tr><td><b>${c?.codigo||'—'}</b></td><td>${c?clienteNombre(c.clienteId):'—'}</td><td>${fmtDate(q.fecha)}</td>
+        <td><button class="btn cyan sm" onclick="resolverCalidad('${q.id}','${q.cyrelId}',true)">Aprobar</button>
+            <button class="btn magenta sm" onclick="resolverCalidad('${q.id}','${q.cyrelId}',false)">Rechazar</button></td></tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+async function resolverCalidad(calidadId, cyrelId, aprobado){
+  let motivo = '';
+  if(!aprobado){ motivo = prompt('Motivo del rechazo:') || 'Sin especificar'; }
+  await db.collection('calidad').doc(calidadId).update({
+    resultado: aprobado?'aprobado':'rechazado', inspectorId: currentUser.id, motivoRechazo: motivo, fecha: FieldValue.serverTimestamp()
+  });
+  const nuevoEstado = aprobado ? 'programado' : 'rechazado';
+  await setEstado(cyrelId, nuevoEstado);
+  await addHistorial(cyrelId, aprobado?'aprobado_calidad':'rechazado_calidad', 'aprobacion_pendiente', nuevoEstado, {motivo}, calidadId);
+}
+
+/* ============================================================
+   IMPRESIÓN
+   ============================================================ */
+function renderImpresion(){
+  const enUso = CACHE.impresion.filter(i=>i.estado!=='devuelto');
+  const disponiblesParaEntrega = CACHE.cyreles.filter(c=>c.estado==='programado');
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Impresión</h2><button class="btn cyan" onclick="openEntregaForm()" ${disponiblesParaEntrega.length?'':'disabled'}>+ Registrar entrega</button></div>
+    <div class="panel"><h3>Cyreles en máquina</h3><div class="tbl-wrap" id="imp-tabla"></div></div>
+  `;
+  const el = document.getElementById('imp-tabla');
+  if(!enUso.length){ el.innerHTML = `<div class="empty"><b>Nada en máquina</b>Registra una entrega desde "programado".</div>`; return; }
+  el.innerHTML = `<table><thead><tr><th>Cyrel</th><th>Máquina</th><th>Entrega</th><th>Estado</th><th></th></tr></thead><tbody>
+    ${enUso.map(i=>`<tr><td><b>${cyrelById(i.cyrelId)?.codigo||'—'}</b></td><td>${i.maquina}</td><td>${fmtDate(i.fechaEntrega)}</td><td>${i.estado}</td>
+      <td><button class="btn ghost sm" onclick="openDevolucionForm('${i.id}','${i.cyrelId}')">Registrar devolución</button></td></tr>`).join('')}
+  </tbody></table>`;
+}
+function openEntregaForm(){
+  const disponibles = CACHE.cyreles.filter(c=>c.estado==='programado');
+  const maquinas = CACHE.configuracion?.maquinas || MAQUINAS_DEFAULT;
+  openModal(`
+    <h3>Registrar entrega a impresión</h3>
+    <div class="field"><label>Cyrel</label><select id="f-cyrel">${disponibles.map(c=>`<option value="${c.id}">${c.codigo} — ${clienteNombre(c.clienteId)}</option>`).join('')}</select></div>
+    <div class="field"><label>Máquina</label><select id="f-maquina">${maquinas.map(m=>`<option>${m}</option>`).join('')}</select></div>
+    <div class="field"><label>Operario</label><select id="f-operario">${CACHE.usuarios.map(u=>`<option value="${u.id}" ${u.id===currentUser.id?'selected':''}>${u.nombre}</option>`).join('')}</select></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn cyan" onclick="guardarEntrega()">Registrar</button></div>
+  `);
+}
+async function guardarEntrega(){
+  const cyrelId = document.getElementById('f-cyrel').value;
+  const maquina = document.getElementById('f-maquina').value;
+  const operarioId = document.getElementById('f-operario').value;
+  if(!cyrelId){ alert('Selecciona un cyrel.'); return; }
+  await db.collection('impresion').add({cyrelId, maquina, operarioId, fechaEntrega: FieldValue.serverTimestamp(), fechaDevolucion:null, estado:'en_uso'});
+  await setEstado(cyrelId,'en_impresion');
+  await addHistorial(cyrelId,'entregado_impresion','programado','en_impresion',{maquina});
+  closeModal();
+}
+function openDevolucionForm(impresionId, cyrelId){
+  openModal(`
+    <h3>Registrar devolución — ${cyrelById(cyrelId)?.codigo}</h3>
+    <div class="two-col">
+      <div class="field"><label>Impresiones realizadas</label><input type="number" id="f-imprealizadas" value="0"></div>
+      <div class="field"><label>¿Hubo corte de planchas?</label><select id="f-hubocorte"><option value="no">No</option><option value="si">Sí</option></select></div>
+    </div>
+    <div class="field"><label>Observaciones</label><textarea id="f-obsdev"></textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn cyan" onclick="guardarDevolucion('${impresionId}','${cyrelId}')">Registrar</button></div>
+  `);
+}
+async function guardarDevolucion(impresionId, cyrelId){
+  const impresiones = Number(document.getElementById('f-imprealizadas').value)||0;
+  const huboCorte = document.getElementById('f-hubocorte').value==='si';
+  const obs = document.getElementById('f-obsdev').value.trim();
+  await db.collection('impresion').doc(impresionId).update({
+    fechaDevolucion: FieldValue.serverTimestamp(), impresionesRealizadas: impresiones, huboCorte, observaciones: obs, estado:'devuelto'
+  });
+  const c = cyrelById(cyrelId);
+  const nuevasAcum = (c?.vidaUtil?.impresionesAcumuladas||0) + impresiones;
+  await db.collection('cyreles').doc(cyrelId).update({'vidaUtil.impresionesAcumuladas': nuevasAcum, fechaUltimaImpresion: FieldValue.serverTimestamp()});
+  const nuevoEstado = huboCorte ? 'en_reposicion' : 'disponible';
+  await setEstado(cyrelId, nuevoEstado);
+  await addHistorial(cyrelId,'devuelto','en_impresion', nuevoEstado, {impresiones, huboCorte}, impresionId);
+  if(huboCorte){
+    await addHistorial(cyrelId,'corte_planchas','en_impresion','en_reposicion',{motivo:obs});
+    await db.collection('reposicion').add({cyrelId, motivo:'Corte de planchas en impresión', fechaSolicitud: FieldValue.serverTimestamp(), estado:'solicitado'});
+  }
+  closeModal();
+}
+
+/* ============================================================
+   MODIFICACIÓN / REPOSICIÓN
+   ============================================================ */
+function renderModificacion(){
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Modificación</h2><button class="btn cyan" onclick="openModForm()">+ Nueva solicitud</button></div>
+    <div class="panel"><div class="tbl-wrap" id="mod-tabla"></div></div>`;
+  const el = document.getElementById('mod-tabla');
+  if(!CACHE.modificacion.length){ el.innerHTML=`<div class="empty"><b>Sin solicitudes</b></div>`; return; }
+  el.innerHTML = `<table><thead><tr><th>Cyrel</th><th>Tipo</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>
+    ${CACHE.modificacion.map(m=>`<tr><td>${cyrelById(m.cyrelId)?.codigo||'—'}</td><td>${m.tipoModificacion}</td><td>${fmtDate(m.fechaSolicitud)}</td><td>${m.estado}</td>
+      <td>${m.estado!=='completado'?`<button class="btn ghost sm" onclick="completarModificacion('${m.id}','${m.cyrelId}')">Completar</button>`:''}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+function openModForm(){
+  openModal(`
+    <h3>Nueva solicitud de modificación</h3>
+    <div class="field"><label>Cyrel</label><select id="f-modcyrel">${CACHE.cyreles.map(c=>`<option value="${c.id}">${c.codigo}</option>`).join('')}</select></div>
+    <div class="field"><label>Tipo de modificación</label><input id="f-modtipo" placeholder="Ej: ajuste de registro, recorte"></div>
+    <div class="field"><label>Descripción</label><textarea id="f-moddesc"></textarea></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn cyan" onclick="guardarModificacion()">Guardar</button></div>`);
+}
+async function guardarModificacion(){
+  const cyrelId = document.getElementById('f-modcyrel').value;
+  await db.collection('modificacion').add({
+    cyrelId, tipoModificacion: document.getElementById('f-modtipo').value, descripcion: document.getElementById('f-moddesc').value,
+    solicitadoPor: currentUser.id, fechaSolicitud: FieldValue.serverTimestamp(), estado:'pendiente'
+  });
+  const anterior = await setEstado(cyrelId,'en_modificacion');
+  await addHistorial(cyrelId,'modificado',anterior,'en_modificacion');
+  closeModal();
+}
+async function completarModificacion(id, cyrelId){
+  await db.collection('modificacion').doc(id).update({estado:'completado', fechaCompletado: FieldValue.serverTimestamp()});
+  await setEstado(cyrelId,'disponible');
+  await addHistorial(cyrelId,'modificado','en_modificacion','disponible');
+}
+function renderReposicion(){
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Reposición</h2><button class="btn cyan" onclick="openRepForm()">+ Nueva solicitud</button></div>
+    <div class="panel"><div class="tbl-wrap" id="rep-tabla"></div></div>`;
+  const el = document.getElementById('rep-tabla');
+  if(!CACHE.reposicion.length){ el.innerHTML=`<div class="empty"><b>Sin solicitudes</b></div>`; return; }
+  el.innerHTML = `<table><thead><tr><th>Cyrel</th><th>Motivo</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>
+    ${CACHE.reposicion.map(r=>`<tr><td>${cyrelById(r.cyrelId)?.codigo||'—'}</td><td>${r.motivo}</td><td>${fmtDate(r.fechaSolicitud)}</td><td>${r.estado}</td>
+      <td>${r.estado!=='instalado'?`<button class="btn ghost sm" onclick="instalarReposicion('${r.id}','${r.cyrelId}')">Marcar instalado</button>`:''}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+function openRepForm(){
+  openModal(`
+    <h3>Nueva solicitud de reposición</h3>
+    <div class="field"><label>Cyrel</label><select id="f-repcyrel">${CACHE.cyreles.map(c=>`<option value="${c.id}">${c.codigo}</option>`).join('')}</select></div>
+    <div class="field"><label>Motivo</label><input id="f-repmotivo" placeholder="Fin de vida útil, daño, corte excesivo"></div>
+    <div class="field"><label>Proveedor</label><input id="f-repprov"></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn cyan" onclick="guardarReposicion()">Guardar</button></div>`);
+}
+async function guardarReposicion(){
+  const cyrelId = document.getElementById('f-repcyrel').value;
+  await db.collection('reposicion').add({
+    cyrelId, motivo: document.getElementById('f-repmotivo').value, proveedor: document.getElementById('f-repprov').value,
+    fechaSolicitud: FieldValue.serverTimestamp(), estado:'solicitado'
+  });
+  const anterior = await setEstado(cyrelId,'en_reposicion');
+  await addHistorial(cyrelId,'repuesto',anterior,'en_reposicion');
+  closeModal();
+}
+async function instalarReposicion(id, cyrelId){
+  await db.collection('reposicion').doc(id).update({estado:'instalado'});
+  await db.collection('cyreles').doc(cyrelId).update({'vidaUtil.impresionesAcumuladas':0});
+  await setEstado(cyrelId,'disponible');
+  await addHistorial(cyrelId,'repuesto','en_reposicion','disponible',{},id);
+}
+
+/* ============================================================
+   TRAZABILIDAD
+   ============================================================ */
+function renderTrazabilidad(){
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Trazabilidad</h2></div>
+    <div class="filter-row"><input type="text" id="traz-search" placeholder="Código del cyrel (ej. CYR-0001)"><button class="btn cyan" onclick="buscarTrazabilidad()">Buscar</button></div>
+    <div class="panel" id="traz-result"><div class="empty">Busca un cyrel por su código para ver su hoja de vida completa.</div></div>
+  `;
+}
+async function buscarTrazabilidad(){
+  const q = document.getElementById('traz-search').value.trim();
+  const c = CACHE.cyreles.find(cy=>cy.codigo.toLowerCase()===q.toLowerCase());
+  const el = document.getElementById('traz-result');
+  if(!c){ el.innerHTML = `<div class="empty"><b>No encontrado</b>Verifica el código.</div>`; return; }
+  el.innerHTML = `<h3>${c.codigo} — ${clienteNombre(c.clienteId)}</h3><div id="traz-hist"><div class="empty">Cargando...</div></div>`;
+  try{
+    const snap = await db.collection('cyreles').doc(c.id).collection('historial').orderBy('fecha','desc').get();
+    const histEl = document.getElementById('traz-hist');
+    if(snap.empty){ histEl.innerHTML='<div class="empty">Sin eventos.</div>'; return; }
+    histEl.innerHTML = snap.docs.map(d=>{
+      const h = d.data();
+      return `<div class="hist-item"><div class="dot"></div><div><div class="d"><b>${h.tipoEvento}</b> — ${usuarioNombre(h.usuarioId)}</div><div class="t">${fmtDate(h.fecha)} ${h.estadoAnterior?('· '+ESTADO_LABEL[h.estadoAnterior]+' → '+ESTADO_LABEL[h.estadoNuevo]):''}</div></div></div>`;
+    }).join('');
+  }catch(e){ console.error('Trazabilidad error:', e); }
+}
+
+/* ============================================================
+   REPORTES
+   ============================================================ */
+function renderReportes(){
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Reportes</h2></div>
+    <div class="panel">
+      <h3>Exportar</h3>
+      <p class="sub" style="margin-bottom:12px;">Descarga el estado actual del inventario o los movimientos recientes en Excel.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn cyan" onclick="exportCyrelesExcel()">Inventario completo</button>
+        <button class="btn ghost" onclick="exportMovimientosExcel()">Movimientos recientes</button>
+      </div>
+    </div>
+  `;
+}
+function exportMovimientosExcel(){
+  db.collection('movimientos').orderBy('fecha','desc').limit(500).get().then(snap=>{
+    const rows = snap.docs.map(d=>{
+      const m = d.data();
+      return {Cyrel:cyrelById(m.cyrelId)?.codigo||m.cyrelId, Tipo:m.tipo, De:m.estadoAnterior, A:m.estadoNuevo, Usuario:usuarioNombre(m.usuarioId), Fecha:fmtDate(m.fecha)};
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
+    XLSX.writeFile(wb, `movimientos_${new Date().toISOString().slice(0,10)}.xlsx`);
+  }).catch(e=>console.error('Export movimientos error:', e));
+}
+
+/* ============================================================
+   CONFIGURACIÓN
+   ============================================================ */
+function renderConfiguracion(){
+  const cfg = CACHE.configuracion || {umbralAlertaVidaUtil:20, maquinas:MAQUINAS_DEFAULT, bodegas:['Bodega principal']};
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Configuración</h2></div>
+    <div class="panel">
+      <div class="field"><label>Umbral de alerta de vida útil (%)</label><input type="number" id="cfg-umbral" value="${cfg.umbralAlertaVidaUtil}"></div>
+      <div class="field"><label>Máquinas (separadas por coma)</label><input id="cfg-maquinas" value="${(cfg.maquinas||[]).join(', ')}"></div>
+      <div class="field"><label>Bodegas (separadas por coma)</label><input id="cfg-bodegas" value="${(cfg.bodegas||[]).join(', ')}"></div>
+      <button class="btn cyan" onclick="guardarConfig()">Guardar cambios</button>
+    </div>
+  `;
+}
+async function guardarConfig(){
+  await db.collection('configuracion').doc('general').set({
+    umbralAlertaVidaUtil: Number(document.getElementById('cfg-umbral').value)||20,
+    maquinas: document.getElementById('cfg-maquinas').value.split(',').map(s=>s.trim()).filter(Boolean),
+    bodegas: document.getElementById('cfg-bodegas').value.split(',').map(s=>s.trim()).filter(Boolean)
+  }, {merge:true});
+  alert('Configuración guardada.');
+}
+
+/* ============================================================
+   USUARIOS
+   ============================================================ */
+function renderUsuarios(){
+  document.getElementById('page').innerHTML = `
+    <div class="page-title"><h2>Usuarios</h2><button class="btn cyan" onclick="openUsuarioForm()">+ Nuevo usuario</button></div>
+    <div class="panel"><div class="tbl-wrap" id="usr-tabla"></div></div>
+  `;
+  const el = document.getElementById('usr-tabla');
+  if(!CACHE.usuarios.length){ el.innerHTML=`<div class="empty"><b>Sin usuarios</b></div>`; return; }
+  el.innerHTML = `<table><thead><tr><th>Nombre</th><th>Rol</th><th>Área</th><th>Activo</th></tr></thead><tbody>
+    ${CACHE.usuarios.map(u=>`<tr><td>${u.nombre}</td><td>${u.rol}</td><td>${u.area||'—'}</td><td>${u.activo?'Sí':'No'}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+function openUsuarioForm(){
+  openModal(`
+    <h3>Nuevo usuario</h3>
+    <div class="field"><label>Nombre</label><input id="f-usrnombre"></div>
+    <div class="two-col">
+      <div class="field"><label>Rol</label><select id="f-usrrol"><option>admin</option><option>jefe_area</option><option>planeacion</option><option>calidad</option><option>impresion</option><option>auxiliar</option></select></div>
+      <div class="field"><label>PIN (4-6 dígitos)</label><input id="f-usrpin" maxlength="6"></div>
+    </div>
+    <div class="field"><label>Área</label><input id="f-usrarea" value="Impresión flexográfica"></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn cyan" onclick="guardarUsuario()">Guardar</button></div>
+  `);
+}
+async function guardarUsuario(){
+  const nombre = document.getElementById('f-usrnombre').value.trim();
+  const pin = document.getElementById('f-usrpin').value.trim();
+  if(!nombre || !pin){ alert('Nombre y PIN son obligatorios.'); return; }
+  await db.collection('usuarios').add({
+    nombre, rol: document.getElementById('f-usrrol').value, area: document.getElementById('f-usrarea').value, pin, activo:true, fechaCreacion: FieldValue.serverTimestamp()
+  });
+  closeModal();
+  loadLoginUsers();
+}
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+const RENDER = {
+  tablero: renderTablero, inventario: renderInventario, clientes: renderClientes,
+  planeacion: renderPlaneacion, calidad: renderCalidad, impresion: renderImpresion,
+  modificacion: renderModificacion, reposicion: renderReposicion, trazabilidad: renderTrazabilidad,
+  reportes: renderReportes, configuracion: renderConfiguracion, usuarios: renderUsuarios
+};
+function renderEmptyPage(id){ document.getElementById('page').innerHTML = `<div class="empty">Sección "${id}" no encontrada.</div>`; }
+
+/* ============================================================
+   INIT
+   ============================================================ */
+window.addEventListener('load', ()=>{
+  if(initFirebase()) loadLoginUsers();
+  else document.getElementById('login-hint').textContent = '⚠️ Configura Firebase para continuar';
+});
+</script>
+</body>
+</html>
